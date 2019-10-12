@@ -3,7 +3,6 @@ package com.example.dsd6;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothSocket;
 import android.content.DialogInterface;
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -31,22 +30,16 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 import android.widget.TextView;
 
 import java.util.Queue;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 @TargetApi(21)
 public class MainActivity extends Activity {
@@ -89,12 +82,14 @@ public class MainActivity extends Activity {
     private DrawChart mDrawChart;
     private TextView mDateView;
     private EditText editText;
+    private ProgressBar mProgressBar;
     private java.util.Date mDate;
     BluetoothGattCharacteristic mTX, mRD;
     Queue<String> txQueue = new ArrayDeque<String>();
     boolean isWriting = false;
-
     DbHandler dbHandler;
+    private int[] retrievedBlocks = new int[30];
+    private int totalRetrievedBlocks = 0;
 
     private void AddText(final String str)
     {
@@ -102,6 +97,15 @@ public class MainActivity extends Activity {
         runOnUiThread(new Runnable() {
             public void run() {
                 mTextView.setText(mTextView.getText() + str);
+            }
+        });
+    }
+
+    private void setProgressBar(final int i)
+    {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                mProgressBar.setProgress(i);
             }
         });
     }
@@ -135,6 +139,11 @@ public class MainActivity extends Activity {
             builder.show();
         }
 
+        for(int i = 0; i< retrievedBlocks.length; i++)
+        {
+            retrievedBlocks[i]=0;
+        }
+
         mTextView = (TextView)findViewById(R.id.textView);
         mTextView.setMovementMethod(new ScrollingMovementMethod());
         mTextView.setText("");
@@ -142,7 +151,7 @@ public class MainActivity extends Activity {
         mDrawChart = (DrawChart) findViewById(R.id.imageView1);
         mDateView = (TextView)findViewById(R.id.dateView);
         editText = (EditText)findViewById(R.id.editText2);
-
+        mProgressBar = (ProgressBar)findViewById(R.id.progressBar);
         dbHandler = new DbHandler(MainActivity.this);
         UpdateToLatest();
 
@@ -152,16 +161,9 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view)
             {
-                String text = editText.getText().toString();
-                if (text.equals("update")) {
-                    for (int i = 0; i < 10; i++)
-                        send("AT+DATA=" + Integer.toString(i));
-                    UpdateToLatest();
-                }
-                else {
-                    send(text);
-                }
-
+            String text = editText.getText().toString();
+            AddText(" tx: " + text + "\n");
+            send(text);
             }
         });
 
@@ -170,8 +172,10 @@ public class MainActivity extends Activity {
         {
             @Override
             public void onClick(View view) {
-                mDate = new java.util.Date(mDate.getTime() - 24*3600*1000);
-                UpdateGraph( mDate);
+                if(mDate!=null) {
+                    mDate = new java.util.Date(mDate.getTime() - 24 * 3600 * 1000);
+                    UpdateGraph(mDate);
+                }
             }
         });
         Button nextButton = (Button)findViewById(R.id.nextButton);
@@ -179,35 +183,39 @@ public class MainActivity extends Activity {
         {
             @Override
             public void onClick(View view) {
-                mDate = new java.util.Date(mDate.getTime() + 24*3600*1000);
-                UpdateGraph( mDate);
+                if(mDate!=null) {
+                    mDate = new java.util.Date(mDate.getTime() + 24 * 3600 * 1000);
+                    UpdateGraph(mDate);
+                }
             }
         });
     }
 
-    void UpdateToLatest()
-    {
-        DbHandler.BandActivity lastActivity = dbHandler.GetLastEntry();
-        mDate =new java.util.Date(lastActivity.timestamp * 1000);
-        UpdateGraph( mDate);
+    void UpdateToLatest() {
+        try {
+            DbHandler.BandActivity lastActivity = dbHandler.GetLastEntry();
+            mDate = new java.util.Date(lastActivity.timestamp * 1000);
+            UpdateGraph(mDate);
+        } catch (Exception e) {
+            AddText(" err: " + e.getMessage() +"\n");
+        }
     }
-
     void UpdateGraph(java.util.Date date)
     {
-        long timeMod = date.getTime() % (24*60*60*1000);
-        timeMod = date.getTime() - timeMod;
+        try {
+            long timeMod = date.getTime() % (24 * 60 * 60 * 1000);
+            timeMod = date.getTime() - timeMod;
 
-        java.util.Date dateIni = new java.util.Date(timeMod);
-        java.util.Date dateFin = new java.util.Date(dateIni.getTime() + 3600*24*1000);
+            java.util.Date dateIni = new java.util.Date(timeMod);
+            java.util.Date dateFin = new java.util.Date(dateIni.getTime() + 3600 * 24 * 1000);
 
-        //String timestampStr1 = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(dateIni);
-        //String timestampStr2 = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(dateFin);
-        //AddText("Last: " + timestampStr1  + " -  " + timestampStr2 + "\n");
+            mDateView.setText(new java.text.SimpleDateFormat("EEE, d MMM yyyy").format(dateIni));
 
-        mDateView.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(dateIni));
-
-        ArrayList<DbHandler.BandActivity> data = dbHandler.GetDataRange(dateIni, dateFin);
-        mDrawChart.AddPoints(dateIni, dateFin, data);
+            ArrayList<DbHandler.BandActivity> data = dbHandler.GetDataRange(dateIni, dateFin);
+            mDrawChart.AddPoints(dateIni, dateFin, data);
+        } catch (Exception e) {
+            AddText(" err: " + e.getMessage() +"\n");
+        }
     }
 
     protected void send(String str)
@@ -225,11 +233,46 @@ public class MainActivity extends Activity {
         {
             isWriting = true;
             String str = txQueue.poll();
-            if (mTX.setValue(str.getBytes())) {
-                AddText(" tx: " + str +"\n");
-                mGatt.writeCharacteristic(mTX);
+            if (mTX!=null) {
+                if (mTX.setValue(str.getBytes())) {
+                    if (mGatt.writeCharacteristic(mTX) == false) {
+                        //AddText(" err: " + str + "\n");
+                        isWriting = false;
+                    }
+                }
+            }
+            else
+            {
+                AddText("err: not connected.\n");
             }
         }
+    }
+
+    Handler hndBlock = new Handler();
+    void getBlocks() {
+         totalRetrievedBlocks = 0;
+         Runnable rr = new Runnable() {
+            public void run() {
+                int requested = 0;
+                for (int i = 0; i < retrievedBlocks.length; i++) {
+                    if (retrievedBlocks[i] == 0) {
+                        send("AT+DATA=" + i);
+                        requested++;
+
+                        // send bursts of max 5 requests
+                        if (requested>5)
+                            break;
+                    }
+                }
+
+                //AddText("----" + ((totalRetrievedBlocks*100)/ retrievedBlocks.length)+ "%");
+                UpdateToLatest();
+
+                if (requested>0)
+                    hndBlock.postDelayed(this,1000);
+            }
+        };
+        hndBlock.post(rr);
     }
 
     @Override
@@ -324,7 +367,7 @@ public class MainActivity extends Activity {
         @Override
         public void onBatchScanResults(List<ScanResult> results)
         {
-            AddText("onBatchScanResults:\n");
+            //AddText("onBatchScanResults:\n");
             for (ScanResult sr : results) {
                 AddText(" " + sr.toString()+"\n");
             }
@@ -344,6 +387,21 @@ public class MainActivity extends Activity {
             mGatt = device.connectGatt(this, false, gattCallback);
             scanLeDevice(false);// will stop after first device detection
         }
+    }
+
+    public void markBlockAsDownloaded(int block)
+    {
+        if (block>=0 && block< retrievedBlocks.length) {
+            retrievedBlocks[block] = 1;
+            totalRetrievedBlocks++;
+            int progress = (totalRetrievedBlocks*100)/retrievedBlocks.length;
+            setProgressBar(progress);
+            if (progress==100) {
+                AddText("Done " + progress + "\n");
+            }
+        }
+        else
+            AddText("err: Unknown block:"+ block);
     }
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback()
@@ -371,7 +429,7 @@ public class MainActivity extends Activity {
         {
             super.onServicesDiscovered(gatt, status);
             List<BluetoothGattService> services = gatt.getServices();
-            AddText("onServicesDiscovered\n");
+            //AddText("onServicesDiscovered\n");
             for (BluetoothGattService service : services)
             {
                 if (service.getUuid().equals(SERVICE_GENERIC_ACCESS))
@@ -392,11 +450,11 @@ public class MainActivity extends Activity {
 
                     //enable read notifications
                     Boolean res1 = gatt.setCharacteristicNotification(mRD, true);
-                    AddText("setCharacteristicNotification: " + res1 + "\n");
+                    //AddText("setCharacteristicNotification: " + res1 + "\n");
                     BluetoothGattDescriptor descriptor = mRD.getDescriptor(CHARACTERISTIC_NORDIC_SERIAL_RX_NOT);
                     if (descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
                         Boolean res = gatt.writeDescriptor(descriptor); //apply these changes to the ble chip to tell it we are ready for the data
-                        AddText("notification: " + res + "\n");
+                        //AddText("notification: " + res + "\n");
                     }
                 }
                 else if (service.getUuid().equals(SERVICE_NORDIC_UNKNOWN))
@@ -416,6 +474,8 @@ public class MainActivity extends Activity {
                     }
                 }
             }
+
+            getBlocks();
         }
 
         @Override
@@ -433,6 +493,8 @@ public class MainActivity extends Activity {
         int len = 0;
         byte[] data;
         int dataCnt = 0;
+        int block = -1;
+
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status)
@@ -481,17 +543,20 @@ public class MainActivity extends Activity {
                             if (command.startsWith("DATA")) {
                                 String[] ss = command.split(",");
                                 len = Integer.valueOf(ss[1]);
+                                block = Integer.valueOf(ss[3]);
                                 data = new byte[len];
                                 dataCnt = 0;
                                 state++;
-                                if (len==0)
-                                    state=0;
+                                if (len==0) {
+                                    markBlockAsDownloaded(block);
+                                    state = 0;
+                                }
                             }
                             else {
                                 state=0;
                             }
 
-                            AddText("* " + command + "\n");
+                            //AddText("* " + command + "\n");
                         } else {
                             if (s[i] != '\r')
                                 command += (char)s[i];
@@ -501,8 +566,6 @@ public class MainActivity extends Activity {
                         data[dataCnt++] = s[i];
                         if (dataCnt==len)
                         {
-                            //AddText(bytesToHex(data));
-
                             for(int o=0;o<len;o+=6) {
 
                                 int type = (data[o + 0] & 0xff) >>6;
@@ -520,10 +583,12 @@ public class MainActivity extends Activity {
 
                                 dbHandler.insertData(type, timestamp, value);
 
-                                String timestampStr = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date(timestamp * 1000));
-                                AddText((o/6) + ": " + timestampStr + " "+ value+"\n");
+                                //String timestampStr = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date(timestamp * 1000));
+                                //AddText((o/6) + ": " + timestampStr + " "+ value+"\n");
                             }
                             state=0;
+
+                            markBlockAsDownloaded(block);
                         }
                     }
                 }

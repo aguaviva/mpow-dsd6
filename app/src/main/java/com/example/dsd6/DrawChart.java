@@ -52,21 +52,9 @@ class DrawChart extends View {
         int step = 60;
 
         int maxY = (200);
-        if (canvas!=null) {
+        if (canvas!=null ) {
 
-            for(DbHandler.BandActivity data : mData)
-            {
-                if (data.type==1) {
-                    int index = (int)(((data.timestamp - mIniTime) * width) / (mFinTime - mIniTime));
-
-                    int x1 = index - 1;
-                    int x2 = index + 1;
-                    int y = (data.value* height) / maxY;
-
-                    canvas.drawRect(x1, height-0, x2, height-y, paintRed);
-                }
-            }
-
+            // draw hour ticks
             for(int i=0;i<24;i++)
             {
                 float x = (i * width) / 24;
@@ -84,6 +72,21 @@ class DrawChart extends View {
             {
                 float y = height - ((i * height) / maxY);
                 canvas.drawLine(0, y, width, y, paintGray);
+            }
+
+            if (mData!=null)
+            {
+                for (DbHandler.BandActivity data : mData) {
+                    if (data.type == 1) {
+                        int index = (int) (((data.timestamp - mIniTime) * width) / (mFinTime - mIniTime));
+
+                        int x1 = index - 1;
+                        int x2 = index + 1;
+                        int y = (data.value * height) / maxY;
+
+                        canvas.drawRect(x1, height - 0, x2, height - y, paintRed);
+                    }
+                }
             }
 
         }

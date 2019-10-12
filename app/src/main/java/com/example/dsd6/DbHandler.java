@@ -34,10 +34,10 @@ public class DbHandler extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db){
         String CREATE_TABLE = "CREATE TABLE " + TABLE_ACTIVITY + "("
-                + KEY_ACTIVITY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + KEY_ACTIVITY_TYPE + " INTEGER,"
                 + KEY_ACTIVITY_TIMESTAMP + " LONG,"
-                + KEY_ACTIVITY_VALUE + " INTEGER"+ ")";
+                + KEY_ACTIVITY_VALUE + " INTEGER,"
+                + "UNIQUE("+KEY_ACTIVITY_TYPE+","+KEY_ACTIVITY_TIMESTAMP+","+KEY_ACTIVITY_VALUE+"))";
         db.execSQL(CREATE_TABLE);
     }
 
@@ -112,18 +112,18 @@ public class DbHandler extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         ArrayList<BandActivity> userList = new ArrayList<>();
         String query = "SELECT " +
-                KEY_ACTIVITY_ID + ", " +
                 KEY_ACTIVITY_TYPE + ", " +
                 KEY_ACTIVITY_TIMESTAMP + ", " +
                 KEY_ACTIVITY_VALUE + " " +
-                " FROM "+ TABLE_ACTIVITY + " ORDER BY " + KEY_ACTIVITY_ID + " DESC LIMIT 1;";
+                " FROM "+ TABLE_ACTIVITY + " ORDER BY " + KEY_ACTIVITY_TIMESTAMP + " DESC LIMIT 1;";
         Cursor cursor = db.rawQuery(query,null);
         cursor.moveToNext();
         BandActivity user = new BandActivity();
+
         user.type = cursor.getInt(cursor.getColumnIndex(KEY_ACTIVITY_TYPE));
         user.timestamp = cursor.getLong(cursor.getColumnIndex(KEY_ACTIVITY_TIMESTAMP));
-        user.value= cursor.getInt(cursor.getColumnIndex(KEY_ACTIVITY_VALUE));
-        return  user;
+        user.value = cursor.getInt(cursor.getColumnIndex(KEY_ACTIVITY_VALUE));
+        return user;
     }
 
 }
