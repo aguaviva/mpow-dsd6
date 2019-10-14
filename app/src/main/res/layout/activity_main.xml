@@ -17,10 +17,16 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <TextView
-            android:id="@+id/textView3"
+            android:id="@+id/statusView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ble shit" />
+            android:text="Connecting..." />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
         <com.example.dsd6.DrawChart
             android:id="@+id/imageView1"
@@ -29,6 +35,13 @@
             android:layout_weight="1"
             android:background="@android:color/black"
              />
+        <com.example.dsd6.DrawChart
+            android:id="@+id/imageView2"
+            android:layout_width="match_parent"
+            android:layout_height="fill_parent"
+            android:layout_weight="1"
+            android:background="@android:color/black"
+            />
 
         <LinearLayout
             android:layout_width="fill_parent"
@@ -59,41 +72,26 @@
                 android:text="next" />
         </LinearLayout>
 
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="?android:attr/progressBarStyleHorizontal"
+        <CheckBox
+            android:id="@+id/checkHeartBeats"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/textView"
-            android:layout_width="match_parent"
-            android:layout_height="fill_parent"
-            android:layout_weight="1"
-            android:scrollbars = "vertical"
-            android:text="TextView" />
-
-
-        <LinearLayout
-            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:checked="true"
+            android:text="heart beat (0-200)" />
 
-            <EditText
-                android:id="@+id/editText2"
-                android:layout_width="match_parent"
-                android:layout_height="fill_parent"
-                android:layout_weight="1"
-                android:inputType="textPersonName"
-                android:text="AT+DATA=0" />
 
-            <Button
-                android:id="@+id/button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=">>" />
+        <CheckBox
+            android:id="@+id/checkSteps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="steps (0-1000)" />
 
-        </LinearLayout>
-
+        <CheckBox
+            android:id="@+id/checkSports"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Sports (0-10000)" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

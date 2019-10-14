@@ -63,6 +63,16 @@ public class DbHandler extends SQLiteOpenHelper {
         db.close();
     }
 
+    // Adding new User Details
+    public void deleteData(){
+        //Get the Data Repository in write mode
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        long newRowId = db.delete(TABLE_ACTIVITY,KEY_ACTIVITY_TIMESTAMP+"=2336045823", null);
+        db.close();
+    }
+
+
     // Get User Details
     public ArrayList<BandActivity> GetData(){
         SQLiteDatabase db = this.getWritableDatabase();
@@ -84,7 +94,6 @@ public class DbHandler extends SQLiteOpenHelper {
     }
 
     public ArrayList<BandActivity> GetDataRange(java.util.Date ini, java.util.Date fin){
-
         long iniTime = ini.getTime()/1000;
         long finTime = fin.getTime()/1000;
 
@@ -103,12 +112,13 @@ public class DbHandler extends SQLiteOpenHelper {
             user.value= cursor.getInt(cursor.getColumnIndex(KEY_ACTIVITY_VALUE));
             userList.add(user);
         }
-        return  userList;
+        return userList;
     }
 
 
     // Get User Details
     public BandActivity GetLastEntry(){
+        //deleteData();
         SQLiteDatabase db = this.getWritableDatabase();
         ArrayList<BandActivity> userList = new ArrayList<>();
         String query = "SELECT " +

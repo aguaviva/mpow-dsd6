@@ -29,8 +29,11 @@ import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import java.util.ArrayDeque;
@@ -43,53 +46,19 @@ import java.util.UUID;
 
 @TargetApi(21)
 public class MainActivity extends Activity {
-    final static public UUID SERVICE_GENERIC_ACCESS                  = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_DEVICE_NAME              = UUID.fromString("00002a00-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_APPEARANCE               = UUID.fromString("00002a01-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_PREFERRED_PARAMS         = UUID.fromString("00002a04-0000-1000-8000-00805f9b34fb");
 
-    final static public UUID SERVICE_GENERIC_ATTRIBUTE               = UUID.fromString("00001801-0000-1000-8000-00805f9b34fb");
-
-    final static public UUID SERVICE_NORDIC_SERIAL                   = UUID.fromString("0000190b-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_NORDIC_SERIAL_TX         = UUID.fromString("00000003-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_NORDIC_SERIAL_RX         = UUID.fromString("00000004-0000-1000-8000-00805f9b34fb");
-    final static public UUID CHARACTERISTIC_NORDIC_SERIAL_RX_NOT     = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-
-    final static public UUID SERVICE_NORDIC_UNKNOWN                  = UUID.fromString("0000190a-0000-1000-8000-00805f9b34fb");
-
-
-    final static public UUID HEART_RATE_MEASUREMENT   = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb");
-    final static public UUID CSC_MEASUREMENT          = UUID.fromString("00002a5b-0000-1000-8000-00805f9b34fb");
-    final static public UUID MANUFACTURER_STRING      = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
-    final static public UUID MODEL_NUMBER_STRING      = UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb");
-    final static public UUID FIRMWARE_REVISION_STRING = UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb");
-    final static public UUID APPEARANCE               = UUID.fromString("00002a01-0000-1000-8000-00805f9b34fb");
-    final static public UUID BODY_SENSOR_LOCATION     = UUID.fromString("00002a38-0000-1000-8000-00805f9b34fb");
-    final static public UUID BATTERY_LEVEL            = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb");
-    final static public UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-
-    private BluetoothAdapter mBluetoothAdapter;
-    private int REQUEST_ENABLE_BT = 1;
-    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
-    private Handler mHandler;
-    private static final long SCAN_PERIOD = 10000;
-    private BluetoothLeScanner mLEScanner;
-    private ScanSettings settings;
-    private List<ScanFilter> filters;
-    private BluetoothGatt mGatt;
-    private TextView mTextView;
-    private Button mButton;
-    private DrawChart mDrawChart;
+    private TextView mTextView,mStatusView;
+    private DrawChart mDrawChartNight;
+    private DrawChart mDrawChartDay;
     private TextView mDateView;
-    private EditText editText;
     private ProgressBar mProgressBar;
     private java.util.Date mDate;
-    BluetoothGattCharacteristic mTX, mRD;
-    Queue<String> txQueue = new ArrayDeque<String>();
-    boolean isWriting = false;
     DbHandler dbHandler;
-    private int[] retrievedBlocks = new int[30];
-    private int totalRetrievedBlocks = 0;
+    BleStuff mBleStuff;
+    BleStuff.BleCallbacks mBleCallbacks;
+    BlockProcessor mBlockProcessor = new BlockProcessor();
+    BlockProcessor.ProcessorCallbacks mMyCallbacks;
+    CheckBox checkHeartBeats, checkSteps, checkSports;
 
     private void AddText(final String str)
     {
@@ -99,73 +68,42 @@ public class MainActivity extends Activity {
                 mTextView.setText(mTextView.getText() + str);
             }
         });
+
+    }
+
+    private void setStatus(final String str)
+    {
+        Log.i("AddText", str);
+        runOnUiThread(new Runnable() {
+            public void run() {
+                mStatusView.setText(str);
+            }
+        });
     }
 
     private void setProgressBar(final int i)
     {
-        runOnUiThread(new Runnable() {
-            public void run() {
-                mProgressBar.setProgress(i);
-            }
-        });
+        mProgressBar.setProgress(i);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
-        mHandler = new Handler();
-        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
-        {
-            Toast.makeText(this, "BLE Not Supported", Toast.LENGTH_SHORT).show();
-            finish();
-        }
-        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = bluetoothManager.getAdapter();
 
-        // Make sure we have access coarse location enabled, if not, prompt the user to enable it
-        if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-        {
-            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("This app needs location access");
-            builder.setMessage("Please grant location access so this app can detect peripherals.");
-            builder.setPositiveButton(android.R.string.ok, null);
-            builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                @Override
-                public void onDismiss(DialogInterface dialog) {
-                    requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
-                }
-            });
-            builder.show();
-        }
+        mBlockProcessor = new BlockProcessor();
+        mBleStuff = new BleStuff();
 
-        for(int i = 0; i< retrievedBlocks.length; i++)
-        {
-            retrievedBlocks[i]=0;
-        }
+        mStatusView = (TextView)findViewById(R.id.statusView);
 
-        mTextView = (TextView)findViewById(R.id.textView);
-        mTextView.setMovementMethod(new ScrollingMovementMethod());
-        mTextView.setText("");
-
-        mDrawChart = (DrawChart) findViewById(R.id.imageView1);
+        mDrawChartNight = (DrawChart) findViewById(R.id.imageView1);
+        mDrawChartDay = (DrawChart) findViewById(R.id.imageView2);
         mDateView = (TextView)findViewById(R.id.dateView);
-        editText = (EditText)findViewById(R.id.editText2);
+
         mProgressBar = (ProgressBar)findViewById(R.id.progressBar);
         dbHandler = new DbHandler(MainActivity.this);
         UpdateToLatest();
-
-        mButton = (Button)findViewById(R.id.button);
-        mButton.setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(View view)
-            {
-            String text = editText.getText().toString();
-            AddText(" tx: " + text + "\n");
-            send(text);
-            }
-        });
 
         Button prevButton = (Button)findViewById(R.id.prevButton);
         prevButton.setOnClickListener(new View.OnClickListener()
@@ -189,6 +127,98 @@ public class MainActivity extends Activity {
                 }
             }
         });
+
+        checkHeartBeats = (CheckBox) findViewById(R.id.checkHeartBeats);
+        checkHeartBeats.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+           {
+               @Override
+               public void onCheckedChanged(CompoundButton buttonView,boolean isChecked) {
+                   mDrawChartNight.setChannel(0,isChecked);
+                   mDrawChartDay.setChannel(0,isChecked);
+                   UpdateGraph(mDate);
+               }
+           }
+        );
+
+        checkSteps = (CheckBox) findViewById(R.id.checkSteps);
+        checkSteps.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+           {
+               @Override
+               public void onCheckedChanged(CompoundButton buttonView,boolean isChecked) {
+                   mDrawChartNight.setChannel(1,isChecked);
+                   mDrawChartDay.setChannel(1,isChecked);
+                   UpdateGraph(mDate);
+               }
+           }
+        );
+
+        checkSports = (CheckBox) findViewById(R.id.checkSports);
+        checkSports.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+              {
+                  @Override
+                  public void onCheckedChanged(CompoundButton buttonView,boolean isChecked) {
+                      mDrawChartNight.setChannel(2,isChecked);
+                      mDrawChartDay.setChannel(2,isChecked);
+                      UpdateGraph(mDate);
+                  }
+              }
+        );
+
+        class MyBlockCallbacks implements BlockProcessor.ProcessorCallbacks
+        {
+            @Override
+            public void setProgress(final int i)
+            {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        setProgressBar(i);
+                        UpdateToLatest();
+                        if (i==100)
+                            setStatus("done");
+                    }
+                });
+            }
+            @Override
+            public void addText(final String str)
+            {
+                AddText(str);
+            }
+            @Override
+            public void send(String command)
+            {
+                mBleStuff.bleSend(command);
+            }
+        }
+        mMyCallbacks = new MyBlockCallbacks();
+
+
+        class MyBleCallbacks implements BleStuff.BleCallbacks
+        {
+            @Override
+            public void onConnect()
+            {
+                setStatus("connected");
+            }
+            @Override
+            public void onDisconect()
+            {
+                setStatus("disconnected");
+            }
+            @Override
+            public void onFound()
+            {
+                setStatus("device found");
+                mBlockProcessor.getBlocks(dbHandler, mMyCallbacks);
+            }
+            @Override
+            public void onData(byte[] data)
+            {
+                mBlockProcessor.process(data);
+            }
+        };
+        mBleCallbacks = new MyBleCallbacks();
+
+        mBleStuff.onCreate(this,mBleCallbacks);
     }
 
     void UpdateToLatest() {
@@ -207,123 +237,44 @@ public class MainActivity extends Activity {
             timeMod = date.getTime() - timeMod;
 
             java.util.Date dateIni = new java.util.Date(timeMod);
+            java.util.Date dateMid = new java.util.Date(dateIni.getTime() + 3600 * 12 * 1000);
             java.util.Date dateFin = new java.util.Date(dateIni.getTime() + 3600 * 24 * 1000);
 
             mDateView.setText(new java.text.SimpleDateFormat("EEE, d MMM yyyy").format(dateIni));
 
             ArrayList<DbHandler.BandActivity> data = dbHandler.GetDataRange(dateIni, dateFin);
-            mDrawChart.AddPoints(dateIni, dateFin, data);
+            mDrawChartNight.AddPoints(0,12, dateIni, dateMid, data);
+            mDrawChartDay.AddPoints(12, 24, dateMid, dateFin, data);
         } catch (Exception e) {
-            AddText(" err: " + e.getMessage() +"\n");
+            AddText(" err: " + e.getMessage() + "\n");
         }
-    }
-
-    protected void send(String str)
-    {
-        synchronized(txQueue)
-        {
-            txQueue.add(str);
-            writeNextValueFromQueue();
-        }
-    }
-
-    protected void writeNextValueFromQueue()
-    {
-        if ((isWriting == false) && (txQueue.size()>0))
-        {
-            isWriting = true;
-            String str = txQueue.poll();
-            if (mTX!=null) {
-                if (mTX.setValue(str.getBytes())) {
-                    if (mGatt.writeCharacteristic(mTX) == false) {
-                        //AddText(" err: " + str + "\n");
-                        isWriting = false;
-                    }
-                }
-            }
-            else
-            {
-                AddText("err: not connected.\n");
-            }
-        }
-    }
-
-    Handler hndBlock = new Handler();
-    void getBlocks() {
-         totalRetrievedBlocks = 0;
-         Runnable rr = new Runnable() {
-            public void run() {
-                int requested = 0;
-                for (int i = 0; i < retrievedBlocks.length; i++) {
-                    if (retrievedBlocks[i] == 0) {
-                        send("AT+DATA=" + i);
-                        requested++;
-
-                        // send bursts of max 5 requests
-                        if (requested>5)
-                            break;
-                    }
-                }
-
-                //AddText("----" + ((totalRetrievedBlocks*100)/ retrievedBlocks.length)+ "%");
-                UpdateToLatest();
-
-                if (requested>0)
-                    hndBlock.postDelayed(this,1000);
-            }
-        };
-        hndBlock.post(rr);
     }
 
     @Override
     protected void onResume()
     {
         super.onResume();
-        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled())
-        {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-        else
-        {
-            if (Build.VERSION.SDK_INT >= 21)
-            {
-                mLEScanner = mBluetoothAdapter.getBluetoothLeScanner();
-                settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
-                filters = new ArrayList<ScanFilter>();
-                ScanFilter filter = new ScanFilter.Builder().setDeviceAddress("D3:71:90:1C:E9:C8").build();
-                filters.add(filter);
-            }
-            scanLeDevice(true);
-        }
+        mBleStuff.onResume();
     }
 
     @Override
     protected void onPause()
     {
         super.onPause();
-        if (mBluetoothAdapter != null && mBluetoothAdapter.isEnabled())
-        {
-            scanLeDevice(false);
-        }
+        mBleStuff.onPause();
     }
 
     @Override
     protected void onDestroy()
     {
-        if (mGatt == null)
-        {
-            return;
-        }
-        mGatt.close();
-        mGatt = null;
+        mBleStuff.onDestroy();
         super.onDestroy();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {
-        if (requestCode == REQUEST_ENABLE_BT)
+        if (requestCode == mBleStuff.REQUEST_ENABLE_BT)
         {
             if (resultCode == Activity.RESULT_CANCELED)
             {
@@ -334,265 +285,4 @@ public class MainActivity extends Activity {
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
-
-    private void scanLeDevice(final boolean enable)
-    {
-        if (enable) {
-            AddText("scanLeDevice " + enable + "\n");
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mLEScanner.stopScan(mScanCallback);
-                }
-            }, SCAN_PERIOD);
-
-            mLEScanner.startScan(filters, settings, mScanCallback);
-        }
-        else
-        {
-            mLEScanner.stopScan(mScanCallback);
-        }
-    }
-
-    private ScanCallback mScanCallback = new ScanCallback()
-    {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result)
-        {
-            AddText(" " + result.getDevice().getAddress().toString() + "\n");
-            BluetoothDevice btDevice = result.getDevice();
-            connectToDevice(btDevice);
-        }
-
-        @Override
-        public void onBatchScanResults(List<ScanResult> results)
-        {
-            //AddText("onBatchScanResults:\n");
-            for (ScanResult sr : results) {
-                AddText(" " + sr.toString()+"\n");
-            }
-        }
-
-        @Override
-        public void onScanFailed(int errorCode)
-        {
-            AddText("Error Code: " + errorCode + "\n");
-        }
-    };
-
-    public void connectToDevice(BluetoothDevice device)
-    {
-        if (mGatt == null)
-        {
-            mGatt = device.connectGatt(this, false, gattCallback);
-            scanLeDevice(false);// will stop after first device detection
-        }
-    }
-
-    public void markBlockAsDownloaded(int block)
-    {
-        if (block>=0 && block< retrievedBlocks.length) {
-            retrievedBlocks[block] = 1;
-            totalRetrievedBlocks++;
-            int progress = (totalRetrievedBlocks*100)/retrievedBlocks.length;
-            setProgressBar(progress);
-            if (progress==100) {
-                AddText("Done " + progress + "\n");
-            }
-        }
-        else
-            AddText("err: Unknown block:"+ block);
-    }
-
-    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback()
-    {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState)
-        {
-            super.onConnectionStateChange(gatt, status, newState);
-            switch (newState)
-            {
-                case BluetoothProfile.STATE_CONNECTED:
-                    AddText("STATE_CONNECTED\n");
-                    gatt.discoverServices();
-                    break;
-                case BluetoothProfile.STATE_DISCONNECTED:
-                    AddText("STATE_DISCONNECTED\n");
-                    break;
-                default:
-                    AddText("STATE_OTHER\n");
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status)
-        {
-            super.onServicesDiscovered(gatt, status);
-            List<BluetoothGattService> services = gatt.getServices();
-            //AddText("onServicesDiscovered\n");
-            for (BluetoothGattService service : services)
-            {
-                if (service.getUuid().equals(SERVICE_GENERIC_ACCESS))
-                {
-                    //AddText("BluetoothGattService: " + "GENERIC_ACCESS" + "\n");
-                    //BluetoothGattCharacteristic name = service.getCharacteristic(CHARACTERISTIC_DEVICE_NAME);
-                    //gatt.readCharacteristic(name);
-                }
-                else if (service.getUuid().equals(SERVICE_GENERIC_ATTRIBUTE))
-                {
-                    //AddText("BluetoothGattService: " + "NORDIC_UNKNOWN" + "\n");
-                }
-                else if (service.getUuid().equals(SERVICE_NORDIC_SERIAL))
-                {
-                    AddText("BluetoothGattService: " + "NORDIC_SERIAL" + "\n");
-                    mTX = service.getCharacteristic(CHARACTERISTIC_NORDIC_SERIAL_TX);
-                    mRD = service.getCharacteristic(CHARACTERISTIC_NORDIC_SERIAL_RX);
-
-                    //enable read notifications
-                    Boolean res1 = gatt.setCharacteristicNotification(mRD, true);
-                    //AddText("setCharacteristicNotification: " + res1 + "\n");
-                    BluetoothGattDescriptor descriptor = mRD.getDescriptor(CHARACTERISTIC_NORDIC_SERIAL_RX_NOT);
-                    if (descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
-                        Boolean res = gatt.writeDescriptor(descriptor); //apply these changes to the ble chip to tell it we are ready for the data
-                        //AddText("notification: " + res + "\n");
-                    }
-                }
-                else if (service.getUuid().equals(SERVICE_NORDIC_UNKNOWN))
-                {
-                    //AddText("BluetoothGattService: " + "NORDIC_UNKNOWN" + "\n");
-                }
-                else
-                {
-                    AddText("BluetoothGattService: " + service.getUuid().toString() + "\n");
-
-                    List<BluetoothGattCharacteristic> serviceCharacteristics = service.getCharacteristics();
-                    for (BluetoothGattCharacteristic characteristic : serviceCharacteristics)
-                    {
-                        gatt.readCharacteristic(characteristic);
-
-                        AddText("*   " + characteristic.getUuid().toString() + "\n");
-                    }
-                }
-            }
-
-            getBlocks();
-        }
-
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status)
-        {
-            synchronized(txQueue)
-            {
-                isWriting = false;
-                writeNextValueFromQueue();
-            }
-        }
-
-        int state = 0;
-        String command;
-        int len = 0;
-        byte[] data;
-        int dataCnt = 0;
-        int block = -1;
-
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status)
-        {
-            super.onCharacteristicRead(gatt, characteristic, status);
-            if (characteristic.getUuid().equals(CHARACTERISTIC_DEVICE_NAME))
-            {
-                AddText("   *   Device Name: "+characteristic.getStringValue(0) +"\n");
-            }
-            else if (characteristic.getUuid().equals(CHARACTERISTIC_NORDIC_SERIAL_RX))
-            {
-                //BluetoothGattCharacteristic nextRequest = readQueue.poll();
-                AddText("   *   Serial RX: "+characteristic.getStringValue(0) +"\n");
-            }
-            else
-            {
-                AddText("   *   "+characteristic.getUuid().toString()+"\n");
-            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic)
-        {
-            super.onCharacteristicChanged(gatt, characteristic);
-            //String data = characteristic.getStringValue(0);
-            //AddText(data);
-            byte[] s = characteristic.getValue();
-            for (int i = 0; i < s.length; i++) {
-                switch (state) {
-                    case 0:
-                        if (s[i] == 'A') state++;
-                        else state = 0;
-                        break;
-                    case 1:
-                        if (s[i] == 'T') state++;
-                        else state = 0;
-                        break;
-                    case 2:
-                        if (s[i] == '+') {
-                            state++;
-                            command = "";
-                        } else state = 0;
-                        break;
-                    case 3:
-                        if (s[i] == '\n') {
-                            if (command.startsWith("DATA")) {
-                                String[] ss = command.split(",");
-                                len = Integer.valueOf(ss[1]);
-                                block = Integer.valueOf(ss[3]);
-                                data = new byte[len];
-                                dataCnt = 0;
-                                state++;
-                                if (len==0) {
-                                    markBlockAsDownloaded(block);
-                                    state = 0;
-                                }
-                            }
-                            else {
-                                state=0;
-                            }
-
-                            //AddText("* " + command + "\n");
-                        } else {
-                            if (s[i] != '\r')
-                                command += (char)s[i];
-                        }
-                        break;
-                    case 4: {
-                        data[dataCnt++] = s[i];
-                        if (dataCnt==len)
-                        {
-                            for(int o=0;o<len;o+=6) {
-
-                                int type = (data[o + 0] & 0xff) >>6;
-
-                                long timestamp = 0;
-                                timestamp = timestamp * 256 + ((data[o + 0]& 0xff) & 0x3f);
-                                timestamp = timestamp * 256 + (data[o + 1]& 0xff);
-                                timestamp = timestamp * 256 + (data[o + 2]& 0xff);
-                                timestamp = timestamp * 256 + (data[o + 3]& 0xff);
-                                timestamp += 1262304000;
-
-                                int value = 0;
-                                value = value * 256 + (data[o + 4]& 0xff);
-                                value = value * 256 + (data[o + 5]& 0xff);
-
-                                dbHandler.insertData(type, timestamp, value);
-
-                                //String timestampStr = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date(timestamp * 1000));
-                                //AddText((o/6) + ": " + timestampStr + " "+ value+"\n");
-                            }
-                            state=0;
-
-                            markBlockAsDownloaded(block);
-                        }
-                    }
-                }
-            }
-        }
-    };
 }
