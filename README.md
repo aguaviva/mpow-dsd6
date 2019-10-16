@@ -2,7 +2,9 @@
 Just a *quick and minimal* Android app for the dsd6 the bracelet.
 
 It loads and displays the following data:
-
+- sleep quality
+  - light sleep
+  - deep sleep
 - heart beat
 - steps
 - "sports steps"
