@@ -47,7 +47,7 @@ import java.util.UUID;
 @TargetApi(21)
 public class MainActivity extends Activity {
 
-    private TextView mTextView,mStatusView;
+    private TextView mStatusView;
     private DrawChart mDrawChartNight;
     private DrawChart mDrawChartDay;
     private TextView mDateView;
@@ -63,12 +63,6 @@ public class MainActivity extends Activity {
     private void AddText(final String str)
     {
         Log.i("AddText", str);
-        runOnUiThread(new Runnable() {
-            public void run() {
-                mTextView.setText(mTextView.getText() + str);
-            }
-        });
-
     }
 
     private void setStatus(final String str)

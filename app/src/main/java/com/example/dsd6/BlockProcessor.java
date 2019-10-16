@@ -15,6 +15,7 @@ public class BlockProcessor {
     String command;
     int len = 0;
     byte[] data;
+    int type = 0;
     int dataCnt = 0;
     int block = -1;
     private int[] retrievedBlocks = new int[30];
@@ -91,7 +92,9 @@ public class BlockProcessor {
                 case 3:
                     if (s[i] == '\n') {
                         if (command.startsWith("DATA")) {
-                            String[] ss = command.split(",");
+                            String[] params = command.split(":");
+                            String[] ss = params[1].split(",");
+                            type = Integer.valueOf(ss[0]);
                             len = Integer.valueOf(ss[1]);
                             block = Integer.valueOf(ss[3]);
                             data = new byte[len];
@@ -116,22 +119,29 @@ public class BlockProcessor {
                     data[dataCnt++] = s[i];
                     if (dataCnt==len)
                     {
-                        for(int o=0;o<len;o+=6) {
+                        for(int o=0;o<len;) {
 
-                            int type = (data[o + 0] & 0xff) >>6;
+                            int flags = (data[o + 0] & 0xff) >>6;
 
                             long timestamp = 0;
-                            timestamp = timestamp * 256 + ((data[o + 0]& 0xff) & 0x3f);
-                            timestamp = timestamp * 256 + (data[o + 1]& 0xff);
-                            timestamp = timestamp * 256 + (data[o + 2]& 0xff);
-                            timestamp = timestamp * 256 + (data[o + 3]& 0xff);
+                            timestamp = timestamp * 256 + ((data[o++]& 0xff) & 0x3f);
+                            timestamp = timestamp * 256 + (data[o++]& 0xff);
+                            timestamp = timestamp * 256 + (data[o++]& 0xff);
+                            timestamp = timestamp * 256 + (data[o++]& 0xff);
                             timestamp += 1262304000;
 
                             int value = 0;
-                            value = value * 256 + (data[o + 4]& 0xff);
-                            value = value * 256 + (data[o + 5]& 0xff);
+                            value = value * 256 + (data[o++]& 0xff);
+                            value = value * 256 + (data[o++]& 0xff);
 
-                            mDbHandler.insertData(type, timestamp, value);
+                            int value2 = 0;
+                            if (type==1) {
+                                //realtime data
+                                value2 = value2 * 256 + (data[o++]& 0xff);
+                                value2 = value2 * 256 + (data[o++]& 0xff);
+                            }
+
+                            mDbHandler.insertData(type, flags, timestamp, value, value2 );
 
                             //String timestampStr = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date(timestamp * 1000));
                             //AddText((o/6) + ": " + timestampStr + " "+ value+"\n");
