@@ -19,4 +19,5 @@ This app does pretty much all I was after so unless I receive pull requests I wo
 The app is linked to my band hw address and, brace yourself, it happens to be hardcoded :) If you want to use it you need to put your own. Pull requests to select a particular device are welcome :)  
 
 ## Screenshot
-![](screenshot.png)
+A huge screenshot is better than no screenshot
+![screenshot](Screenshot.png)
