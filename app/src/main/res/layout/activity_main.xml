@@ -46,7 +46,6 @@
         <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-
             android:orientation="horizontal">
 
             <Button
@@ -72,26 +71,34 @@
                 android:text="next" />
         </LinearLayout>
 
-        <CheckBox
-            android:id="@+id/checkHeartBeats"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="heart beat (0-200)" />
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <CheckBox
+                android:id="@+id/checkHeartBeats"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="heart beat (0-200)" />
 
 
-        <CheckBox
-            android:id="@+id/checkSteps"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="steps (0-1000)" />
+            <CheckBox
+                android:id="@+id/checkSteps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="steps (0-1000)" />
 
-        <CheckBox
-            android:id="@+id/checkSports"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="Sports (0-1000)" />
+            <CheckBox
+                android:id="@+id/checkSports"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Sports (0-1000)" />
+        </LinearLayout>
+
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

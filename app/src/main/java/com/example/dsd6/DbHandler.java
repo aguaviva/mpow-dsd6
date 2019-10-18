@@ -69,6 +69,18 @@ public class DbHandler extends SQLiteOpenHelper {
         db.close();
     }
 
+    public void reformatDB(){
+        //Get the Data Repository in write mode
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.execSQL("update activity set type=7 where value=11 and type is null;");
+        db.execSQL("update activity set type=7 where value=12 and type is null;");
+        db.execSQL("update activity set type=3 where flags=1 and type is null;");
+        db.execSQL("update activity set type=7 where flags=3 and type is null;");
+        db.execSQL("update activity set type=7 where flags=0 and value=0 and type is null;");
+        db.execSQL("update activity set type=0 where flags=2 and type is null;");
+        db.close();
+    }
+
     // Get User Details
     public ArrayList<BandActivity> GetData(){
         SQLiteDatabase db = this.getWritableDatabase();
