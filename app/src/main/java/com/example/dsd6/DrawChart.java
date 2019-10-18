@@ -183,8 +183,7 @@ class DrawChart extends View {
                         switch(data.flags) {
                             case 0: { //start sleeping
                                 int xx = mapX((int) data.timestamp - eventDuration, (int) mIniTime, (int) mFinTime);
-                                int yy1 = mapY(maxY * 1 / 10, 0, maxY);
-                                drawBar(canvas, xx, yy1, 1000, paintYellow); // unknown
+                                drawBar(canvas, xx, 100, 1000, paintYellow); // unknown
                                 break;
                             }
                             case 1: { // sleep quality, the span of this is 10 minutes
