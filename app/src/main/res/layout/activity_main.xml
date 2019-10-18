@@ -92,6 +92,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="Sports (0-10000)" />
+            android:text="Sports (0-1000)" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

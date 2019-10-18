@@ -21,7 +21,6 @@ public class DbHandler extends SQLiteOpenHelper {
         public int value2;
     };
 
-
     private static final int DB_VERSION = 1;
     private static final String DB_NAME = "fitdb";
     private static final String TABLE_ACTIVITY = "activity";
@@ -69,16 +68,6 @@ public class DbHandler extends SQLiteOpenHelper {
         long newRowId = db.insert(TABLE_ACTIVITY,null, cValues);
         db.close();
     }
-
-    // Adding new User Details
-    public void deleteData(){
-        //Get the Data Repository in write mode
-        SQLiteDatabase db = this.getWritableDatabase();
-
-        long newRowId = db.delete(TABLE_ACTIVITY,KEY_ACTIVITY_TIMESTAMP+"=2336045823", null);
-        db.close();
-    }
-
 
     // Get User Details
     public ArrayList<BandActivity> GetData(){
