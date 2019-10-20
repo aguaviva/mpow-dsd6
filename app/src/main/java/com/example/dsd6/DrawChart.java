@@ -8,7 +8,6 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 class DrawChart extends View {
@@ -28,7 +27,7 @@ class DrawChart extends View {
     ArrayList<DbHandler.BandActivity> mData;
     long mIniTime, mFinTime;
     int mHIni, mHFin;
-    int mPpadding;
+    int mPadding;
     int mWidth, mHeight;
     int xLeft, xRight, yTop, yBottom;
 
@@ -54,7 +53,7 @@ class DrawChart extends View {
 
         paintWhiteText.setColor(Color.WHITE);
         paintWhiteText.setStyle(Paint.Style.FILL);
-        paintWhiteText.setTextSize(20);
+        paintWhiteText.setTextSize(25);
         paintWhiteText.setTextAlign(Paint.Align.CENTER);
 
         paintAwardText.setColor(Color.WHITE);
@@ -62,7 +61,7 @@ class DrawChart extends View {
         paintAwardText.setTextSize(30);
         paintAwardText.setTextAlign(Paint.Align.CENTER);
 
-        mPpadding = (int)paintWhiteText.getTextSize();
+        mPadding = (int)paintWhiteText.getTextSize();
     }
     public void setChannel(int channel, boolean state)
     {
@@ -95,15 +94,15 @@ class DrawChart extends View {
 
     int mapX(int x, int minx, int maxx)
     {
-        int min = mPpadding;
-        int max = mWidth - mPpadding;
+        int min = mPadding;
+        int max = mWidth - mPadding;
         return map(x, minx, maxx, min, max);
     }
 
     int mapY(int x, int minx, int maxx)
     {
-        int min = mPpadding;
-        int max = mHeight - mPpadding;
+        int min = mPadding;
+        int max = mHeight - 3*mPadding/2;  //double padding at the top for the numbers
         return mHeight - map(x, minx, maxx, min, max);
     }
 
@@ -136,15 +135,6 @@ class DrawChart extends View {
 
     void DrawFrame(Canvas canvas)
     {
-        // draw hour ticks
-        for(int i=0;i<=12;i++) {
-            int x = mapX(i, 0, 12);
-            int h = mHIni +  i*(mHFin -mHIni)/12;
-
-            canvas.drawLine(x, yTop, x, yBottom, paintGray);
-            canvas.drawText(""+h, x, yBottom, paintWhiteText);
-        }
-
         for(int i=0;i<=4;i++) {
             int y = mapY(i, 0, 4);
             canvas.drawLine(xLeft, y, xRight, y, paintGray);
@@ -153,6 +143,15 @@ class DrawChart extends View {
         for(int i=50;i<100;i+=10) {
             int y = mapY(i, 0, 200);
             canvas.drawLine(xLeft, y, xRight, y, paintGray);
+        }
+
+        // draw hour ticks
+        for(int i=0;i<=12;i++) {
+            int x = mapX(i, 0, 12);
+            int h = mHIni +  i*(mHFin -mHIni)/12;
+
+            canvas.drawLine(x, yTop, x, yBottom, paintGray);
+            canvas.drawText(""+h, x, yBottom-mPadding/3, paintWhiteText);
         }
     }
 
