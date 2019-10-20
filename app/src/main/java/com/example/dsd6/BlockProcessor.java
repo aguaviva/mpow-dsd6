@@ -18,7 +18,7 @@ public class BlockProcessor {
     int type = 0;
     int dataCnt = 0;
     int block = -1;
-    private int[] retrievedBlocks = new int[30];
+    private int[] retrievedBlocks = new int[40];
     private int totalRetrievedBlocks = 0;
     DbHandler mDbHandler;
     ProcessorCallbacks mCallbacks;

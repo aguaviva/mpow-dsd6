@@ -9,6 +9,7 @@ import android.view.View;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 class DrawChart extends View {
 
@@ -18,6 +19,7 @@ class DrawChart extends View {
     private Paint paintGreen = new Paint();
     private Paint paintYellow = new Paint();
     private Paint paintWhiteText = new Paint();
+    private Paint paintAwardText = new Paint();
     private Paint paintPurple = new Paint();
     private Paint paintCyan = new Paint();
 
@@ -37,10 +39,10 @@ class DrawChart extends View {
         paintRed.setStrokeWidth(8);
 
         paintBlue.setColor(Color.BLUE);
-        paintBlue.setStrokeWidth(8);
+        paintBlue.setStrokeWidth(4);
         paintGreen.setColor(Color.GREEN);
         paintYellow.setColor(Color.YELLOW);
-        paintBlue.setStrokeWidth(8);
+        paintYellow.setStrokeWidth(2);
 
         paintGray.setColor(Color.GRAY);
         paintGray.setStrokeWidth(2);
@@ -54,6 +56,11 @@ class DrawChart extends View {
         paintWhiteText.setStyle(Paint.Style.FILL);
         paintWhiteText.setTextSize(20);
         paintWhiteText.setTextAlign(Paint.Align.CENTER);
+
+        paintAwardText.setColor(Color.WHITE);
+        paintAwardText.setStyle(Paint.Style.FILL);
+        paintAwardText.setTextSize(30);
+        paintAwardText.setTextAlign(Paint.Align.CENTER);
 
         mPpadding = (int)paintWhiteText.getTextSize();
     }
@@ -80,6 +87,8 @@ class DrawChart extends View {
     int map(int x, int minx, int maxx, int min, int max)
     {
         int xspan = (maxx-minx);
+        if (xspan==0)
+            return min;
         int t = (x-minx);
         return min + (t * (max-min)) / xspan;
     }
@@ -109,6 +118,44 @@ class DrawChart extends View {
         canvas.drawRect(x - 1, yTop, x + 1, yy, p);
     }
 
+    void drawStar(Canvas canvas, float px,float py, float r, Paint p)
+    {
+        float x = 0;
+        float y = r*0.5f;
+        for(int i=1;i<11;i++)
+        {
+            float a = (2.0f*3.1415f*(float)i)/10.0f;
+            float rr = ((i&1)==1)?r:(r * .5f);
+            float xx = rr*(float)Math.sin(a);
+            float yy = rr*(float)Math.cos(a);
+            canvas.drawLine(px+x, py+y, px+xx, py+yy, p);
+            x=xx;
+            y=yy;
+        }
+    }
+
+    void DrawFrame(Canvas canvas)
+    {
+        // draw hour ticks
+        for(int i=0;i<=12;i++) {
+            int x = mapX(i, 0, 12);
+            int h = mHIni +  i*(mHFin -mHIni)/12;
+
+            canvas.drawLine(x, yTop, x, yBottom, paintGray);
+            canvas.drawText(""+h, x, yBottom, paintWhiteText);
+        }
+
+        for(int i=0;i<=4;i++) {
+            int y = mapY(i, 0, 4);
+            canvas.drawLine(xLeft, y, xRight, y, paintGray);
+        }
+
+        for(int i=50;i<100;i+=10) {
+            int y = mapY(i, 0, 200);
+            canvas.drawLine(xLeft, y, xRight, y, paintGray);
+        }
+    }
+
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -124,17 +171,32 @@ class DrawChart extends View {
         int maxY = 200;
 
         if (canvas!=null ) {
-            // draw hour ticks
-            for(int i=0;i<=12;i++) {
-                int x = mapX(i, 0, 12);
-                int h = mHIni +  i*(mHFin -mHIni)/12;
 
-                canvas.drawLine(x, yTop, x, yBottom, paintGray);
-                canvas.drawText(""+h, x, yBottom, paintWhiteText);
-            }
+            DrawFrame(canvas);
 
             if (mData!=null) {
+
+                //count steps walking and running
+                int totalSteps = 0;
                 for (DbHandler.BandActivity data : mData) {
+                    if (data.type==0 && (data.flags==2 || data.flags==1)) {
+                        totalSteps+= data.value;
+                    }
+                }
+
+                // steps stuff
+                int stepsForStar=5000;
+                int totalStepsMax = (int)(Math.ceil((float)totalSteps/stepsForStar)*stepsForStar);
+                totalStepsMax = Math.max(totalStepsMax, stepsForStar*2);
+                int starCount=0;
+                List<Integer> startList = new ArrayList<Integer>();
+                int lastStepX = mapX((int)mIniTime, (int)mIniTime, (int)mFinTime);
+                int stepsAcc = 0;
+
+                for (DbHandler.BandActivity data : mData) {
+
+                    if (data.timestamp>mFinTime)
+                        break;
 
                     int x = mapX((int) data.timestamp, (int) mIniTime, (int) mFinTime);
 
@@ -148,14 +210,25 @@ class DrawChart extends View {
                     if (data.type==0) {
                         switch(data.flags)
                         {
-                            case 1: { // steps, running?
-                                if ((mMask & 4) > 0)
-                                    drawBar(canvas, x, data.value, 1000, paintYellow);
-                                break;
-                            }
-                            case 2: { //steps, walking
-                                if ((mMask & 2) > 0)
-                                    drawBar(canvas, x, data.value, 1000, paintBlue);
+                            case 1:   // steps, running
+                            case 2: { // steps, walking
+                                if ((mMask & 6) > 0) {
+                                    int y0 = mapY(stepsAcc, 0, totalStepsMax);
+                                    canvas.drawLine(lastStepX, y0, x, y0, paintBlue);
+                                    stepsAcc += data.value;
+                                    lastStepX = x;
+
+                                    int y1 = mapY(stepsAcc, 0, totalStepsMax);
+
+                                    canvas.drawLine(x, y0, x, y1, (data.flags==2)?paintBlue:paintYellow);
+
+                                    // mark awards positions
+                                    if (stepsAcc>stepsForStar*(starCount+1))
+                                    {
+                                        startList.add(x);
+                                        starCount++;
+                                    }
+                                }
                                 break;
                             }
                             default: { // unknown
@@ -211,16 +284,25 @@ class DrawChart extends View {
                         }
                     }
                 }
-            }
 
-            for(int i=0;i<=4;i++) {
-                int y = mapY(i, 0, 4);
-                canvas.drawLine(xLeft, y, xRight, y, paintGray);
-            }
+                // more steps drawing: awards, misc
+                if ((mMask & 2) > 0) {
+                    //horizontal blue bar until the end
+                    int y0 = mapY(stepsAcc, 0, totalStepsMax);
+                    canvas.drawLine(lastStepX, y0, xRight, y0, paintBlue);
+                    paintWhiteText.setTextAlign(Paint.Align.RIGHT);
+                    canvas.drawText("" + stepsAcc, xRight, y0, paintWhiteText);
+                    paintWhiteText.setTextAlign(Paint.Align.CENTER);
 
-            for(int i=50;i<100;i+=10) {
-                int y = mapY(i, 0, 200);
-                canvas.drawLine(xLeft, y, xRight, y, paintGray);
+                    // draw stars
+                    for (int c = 0; c < startList.size(); c++) {
+                        int steps = (c + 1) * stepsForStar;
+                        int x = startList.get(c);
+                        int y = mapY(steps, 0, totalStepsMax);
+                        drawStar(canvas, x, y, 20, paintYellow);
+                        canvas.drawText("" + steps, x, y + 50, paintAwardText);
+                    }
+                }
             }
         }
     }

@@ -117,7 +117,8 @@ public class DbHandler extends SQLiteOpenHelper {
                 KEY_ACTIVITY_TIMESTAMP + ", " +
                 KEY_ACTIVITY_VALUE + ", " +
                 KEY_ACTIVITY_VALUE2 + " " +
-                " FROM "+ TABLE_ACTIVITY + " WHERE " + KEY_ACTIVITY_TIMESTAMP + " BETWEEN " + iniTime + " AND " + finTime;
+                "FROM "+ TABLE_ACTIVITY + " WHERE " + KEY_ACTIVITY_TIMESTAMP + " BETWEEN " + iniTime + " AND " + finTime + " " +
+                "ORDER BY " + KEY_ACTIVITY_TIMESTAMP + " ASC;";
         Cursor cursor = db.rawQuery(query,null);
         while (cursor.moveToNext()){
             BandActivity user = new BandActivity();
