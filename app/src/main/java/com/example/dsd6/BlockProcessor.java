@@ -1,6 +1,7 @@
 package com.example.dsd6;
 
 import android.os.Handler;
+import android.util.Log;
 
 public class BlockProcessor {
 
@@ -25,44 +26,37 @@ public class BlockProcessor {
 
     Handler hndBlock = new Handler();
 
-    public BlockProcessor() {
-        for(int i = 0; i< retrievedBlocks.length; i++)
-        {
-            retrievedBlocks[i]=0;
-        }
-    }
-
-    void getBlocks(DbHandler dbHandler, ProcessorCallbacks callbacks) {
+    public BlockProcessor(DbHandler dbHandler, ProcessorCallbacks callbacks) {
         mCallbacks = callbacks;
         mDbHandler = dbHandler;
-        totalRetrievedBlocks = 0;
-        Runnable rr = new Runnable() {
-            public void run() {
-                int requested = 0;
-                for (int i = 0; i < retrievedBlocks.length; i++) {
-                    if (retrievedBlocks[i] == 0) {
-                        mCallbacks.send("AT+DATA=" + i);
-                        requested++;
-
-                        // send bursts of max 5 requests
-                        if (requested>5)
-                            break;
-                    }
-                }
-
-                if (requested>0)
-                    hndBlock.postDelayed(this,1000);
-            }
-        };
-        hndBlock.post(rr);
     }
 
-    public void markBlockAsDownloaded(int block)
+    public void init() {
+        totalRetrievedBlocks = 0;
+        for (int i = 0; i < retrievedBlocks.length; i++)
+            retrievedBlocks[i] = 0;
+    }
+
+    public void getBlocks() {
+        for (int i = 0; i < retrievedBlocks.length; i++)
+            if (retrievedBlocks[i]==0)
+                mCallbacks.send("AT+DATA=" + i);
+    }
+
+    private void markBlockAsDownloaded(int block)
     {
+        //Log.i("caca","block "+ block + " "+ retrievedBlocks[block]+"\n");
+
         if (block>=0 && block< retrievedBlocks.length) {
-            retrievedBlocks[block] = 1;
-            totalRetrievedBlocks++;
-            int progress = (totalRetrievedBlocks*100)/retrievedBlocks.length;
+            int progress = 0;
+            synchronized (retrievedBlocks) {
+                if (retrievedBlocks[block] != 0) {
+                    return;
+                }
+                retrievedBlocks[block] = 1;
+                totalRetrievedBlocks++;
+                progress = (totalRetrievedBlocks * 100) / retrievedBlocks.length;
+            }
             mCallbacks.setProgress(progress);
         }
         else {
@@ -73,6 +67,8 @@ public class BlockProcessor {
 
     public void process(byte[] s)
     {
+        //Log.i("process",new String(s)+"\n");
+
         for (int i = 0; i < s.length; i++) {
             switch (state) {
                 case 0:
@@ -90,7 +86,8 @@ public class BlockProcessor {
                     } else state = 0;
                     break;
                 case 3:
-                    if (s[i] == '\n') {
+                    if (s[i]=='\n') {
+                        Log.i("command",""+ command );
                         if (command.startsWith("DATA")) {
                             String[] params = command.split(":");
                             String[] ss = params[1].split(",");
@@ -101,6 +98,7 @@ public class BlockProcessor {
                             dataCnt = 0;
                             state++;
                             if (len==0) {
+                                //block with no data
                                 markBlockAsDownloaded(block);
                                 state = 0;
                             }
@@ -108,9 +106,8 @@ public class BlockProcessor {
                         else {
                             state=0;
                         }
-
-                        //AddText("* " + command + "\n");
-                    } else {
+                    }
+                    else {
                         if (s[i] != '\r')
                             command += (char)s[i];
                     }
@@ -141,7 +138,13 @@ public class BlockProcessor {
                                 value2 = value2 * 256 + (data[o++]& 0xff);
                             }
 
-                            mDbHandler.insertData(type, flags, timestamp, value, value2 );
+                            try {
+                                mDbHandler.insertData(type, flags, timestamp, value, value2);
+                            }
+                            catch (Exception e)
+                            {
+                                e.printStackTrace();
+                            }
 
                             //String timestampStr = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date(timestamp * 1000));
                             //AddText((o/6) + ": " + timestampStr + " "+ value+"\n");
@@ -150,6 +153,11 @@ public class BlockProcessor {
 
                         markBlockAsDownloaded(block);
                     }
+                    break;
+                }
+                default:
+                {
+                    Log.i("caca","block "+ block + " "+ retrievedBlocks[block]+"\n");
                 }
             }
         }

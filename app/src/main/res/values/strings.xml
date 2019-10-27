@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">DSD6</string>
+    <string name="toggle_heart">toggle heart rate</string>
+    <string name="toggle_steps">toggle steps</string>
+    <string name="menu_stop">stop</string>
+    <string name="menu_scan">scan</string>
+    <string name="title_devices">devices</string>
+    <string name="ble_not_supported">ble not supported</string>
+    <string name="error_bluetooth_not_supported">bluetooth not supported</string>
+    <string name="unknown_device">unkown device</string>
 </resources>

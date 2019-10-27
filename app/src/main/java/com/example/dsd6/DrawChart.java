@@ -20,7 +20,10 @@ class DrawChart extends View {
     private Paint paintWhiteText = new Paint();
     private Paint paintAwardText = new Paint();
     private Paint paintPurple = new Paint();
+    private Paint paintDarkPurple = new Paint();
     private Paint paintCyan = new Paint();
+
+    private Paint mPaintWalkingColor = paintBlue;
 
     private float[] lines = new float[1024*2];
 
@@ -40,16 +43,18 @@ class DrawChart extends View {
         paintBlue.setColor(Color.BLUE);
         paintBlue.setStrokeWidth(4);
         paintGreen.setColor(Color.GREEN);
+        paintGreen.setStrokeWidth(4);
         paintYellow.setColor(Color.YELLOW);
-        paintYellow.setStrokeWidth(2);
+        paintYellow.setStrokeWidth(4);
 
         paintGray.setColor(Color.GRAY);
         paintGray.setStrokeWidth(2);
 
         paintCyan.setColor(Color.CYAN);
-        paintCyan.setStrokeWidth(2);
+        paintCyan.setStrokeWidth(6);
 
-        paintPurple.setColor(Color.argb(255,152,118,170));
+        paintPurple.setColor(Color.argb(255,128,128,255));
+        paintDarkPurple.setColor(Color.argb(255,0,0,192));
 
         paintWhiteText.setColor(Color.WHITE);
         paintWhiteText.setStyle(Paint.Style.FILL);
@@ -178,7 +183,7 @@ class DrawChart extends View {
                 //count steps walking and running
                 int totalSteps = 0;
                 for (DbHandler.BandActivity data : mData) {
-                    if (data.type==0 && (data.flags==2 || data.flags==1)) {
+                    if (data.type==0) {
                         totalSteps+= data.value;
                     }
                 }
@@ -199,49 +204,43 @@ class DrawChart extends View {
 
                     int x = mapX((int) data.timestamp, (int) mIniTime, (int) mFinTime);
 
-                    // types:
-                    // 0- exercising
-                    // 1- realtime exercising (this uses value2)
-                    // 2- sleeping
-                    // 3- sleeping heart rate
-
-                    //
                     if (data.type==0) {
-                        switch(data.flags)
-                        {
-                            case 1:   // steps, running
-                            case 2: { // steps, walking
-                                if ((mMask & 6) > 0) {
-                                    int y0 = mapY(stepsAcc, 0, totalStepsMax);
-                                    canvas.drawLine(lastStepX, y0, x, y0, paintBlue);
-                                    stepsAcc += data.value;
-                                    lastStepX = x;
+                        //
+                        // steps
+                        //
+                        if ((mMask & 2) > 0) {
 
-                                    int y1 = mapY(stepsAcc, 0, totalStepsMax);
+                            //make long horizontal lines blue
+                            if (x-lastStepX>10)
+                                mPaintWalkingColor = paintBlue;
 
-                                    canvas.drawLine(x, y0, x, y1, (data.flags==2)?paintBlue:paintYellow);
+                            int y0 = mapY(stepsAcc, 0, totalStepsMax);
+                            canvas.drawLine(lastStepX, y0, x, y0, mPaintWalkingColor);
+                            stepsAcc += data.value;
+                            lastStepX = x;
 
-                                    // mark awards positions
-                                    if (stepsAcc>stepsForStar*(starCount+1))
-                                    {
-                                        startList.add(x);
-                                        starCount++;
-                                    }
-                                }
-                                break;
+                            int y1 = mapY(stepsAcc, 0, totalStepsMax);
+
+                            switch(data.flags) {
+                                case 1:   mPaintWalkingColor = paintYellow; break;// steps, fast walking
+                                case 2:   mPaintWalkingColor = paintBlue; break;// steps, walking
+                                case 3:   mPaintWalkingColor = paintGreen; break;// steps, running
+                                default:  mPaintWalkingColor = paintCyan;
                             }
-                            default: { // unknown
-                                drawBar(canvas, x, 1000, 1000, paintGreen);
+
+                            canvas.drawLine(x, y0, x, y1, mPaintWalkingColor);
+
+                            // mark awards positions
+                            if (stepsAcc>stepsForStar*(starCount+1))
+                            {
+                                startList.add(x);
+                                starCount++;
                             }
                         }
-                    }
-                    else if (data.type==1) {
-                        drawBar(canvas, x, 1000, 1000, paintCyan); // unknown
-                    }
-                    else if (data.type==2) {
-                        drawBar(canvas, x, 1000, 1000, paintCyan); // unknown
-                    }
-                    else if (data.type==3) {
+                    } else if (data.type==3) {
+                        //
+                        // heart rate
+                        //
                         if (data.flags == 1) {
                             if ((mMask & 1) > 0)
                                 drawBar(canvas, x, data.value, 200, paintRed); //heart rate
@@ -249,8 +248,10 @@ class DrawChart extends View {
                             // not seen
                             drawBar(canvas, x, 1000, 1000, paintGreen);
                         }
-                    }
-                    else if (data.type==7) {
+                    } else if (data.type==7) {
+                        //
+                        // sleeping quality
+                        //
                         int eventDuration = 10 * 60; //in seconds
                         switch(data.flags) {
                             case 0: { //start sleeping
@@ -265,7 +266,7 @@ class DrawChart extends View {
                                 if (data.value == 11)  // light sleep
                                     p = paintPurple;
                                 else if (data.value == 12)
-                                    p = paintBlue;  // deep sleep
+                                    p = paintDarkPurple;  // deep sleep
                                 else
                                     p = paintGray; // unknown
 
@@ -274,13 +275,15 @@ class DrawChart extends View {
                                 break;
                             }
                             case 3: { //end sleeping
-                                drawBar(canvas, x, data.value, 10000, paintYellow);
+                                drawBar(canvas, x, data.value & 0xf, 10, paintYellow);
                                 break;
                             }
                             default: { // not seen
                                 drawBar(canvas, x, 1000, 1000, paintGreen);
                             }
                         }
+                    } else {
+                        drawBar(canvas, x, 1000, 1000, paintCyan); // unknown
                     }
                 }
 

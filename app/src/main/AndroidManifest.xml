@@ -12,10 +12,12 @@
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".DeviceScanActivity" android:theme="@android:style/Theme.Holo"/>
+
+        <service android:name=".BleStuffService" android:label="my label blah" ></service>
     </application>
 
     <uses-feature

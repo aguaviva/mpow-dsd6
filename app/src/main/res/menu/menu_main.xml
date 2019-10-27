@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="all">
+        <item
+            android:id="@+id/toggle_steps"
+            android:title="@string/toggle_steps"
+            app:showAsAction="never" />
+
+        <item
+            android:id="@+id/toggle_heart"
+            android:title="@string/toggle_heart"
+            app:showAsAction="never" />
+    </group>
+</menu>

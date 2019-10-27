@@ -20,7 +20,7 @@
             android:id="@+id/statusView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Connecting..." />
+            android:text="Idle" />
 
         <ProgressBar
             android:id="@+id/progressBar"
@@ -92,12 +92,6 @@
                 android:checked="true"
                 android:text="steps (0-1000)" />
 
-            <CheckBox
-                android:id="@+id/checkSports"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="Sports (0-1000)" />
         </LinearLayout>
 
     </LinearLayout>

@@ -1,52 +1,30 @@
 package com.example.dsd6;
 
-import android.Manifest;
-import android.app.AlertDialog;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.content.DialogInterface;
+import android.content.BroadcastReceiver;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.ScanResult;
-import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.os.Build;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.RadioGroup;
-import android.widget.Toast;
-
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.List;
 import android.widget.TextView;
 
-import java.util.Queue;
-import java.util.UUID;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 @TargetApi(21)
 public class MainActivity extends Activity {
 
+    public static final String EXTRAS_DEVICE_NAME = "device_name";
+    public static final String EXTRAS_DEVICE_ADDRESS = "device_address";
     private TextView mStatusView;
     private DrawChart mDrawChartNight;
     private DrawChart mDrawChartDay;
@@ -54,11 +32,9 @@ public class MainActivity extends Activity {
     private ProgressBar mProgressBar;
     private java.util.Date mDate;
     DbHandler dbHandler;
-    BleStuff mBleStuff;
-    BleStuff.BleCallbacks mBleCallbacks;
-    BlockProcessor mBlockProcessor = new BlockProcessor();
-    BlockProcessor.ProcessorCallbacks mMyCallbacks;
-    CheckBox checkHeartBeats, checkSteps, checkSports;
+    CheckBox checkHeartBeats, checkSteps;
+    SharedPreferences sharedPref;
+    String mDeviceAddress;
 
     private void AddText(final String str)
     {
@@ -67,7 +43,7 @@ public class MainActivity extends Activity {
 
     private void setStatus(final String str)
     {
-        Log.i("AddText", str);
+        //Log.i("AddText", str);
         runOnUiThread(new Runnable() {
             public void run() {
                 mStatusView.setText(str);
@@ -84,10 +60,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
+        sharedPref = getSharedPreferences("myPref", MODE_PRIVATE);
 
-        mBlockProcessor = new BlockProcessor();
-        mBleStuff = new BleStuff();
+        setContentView(R.layout.activity_main);
 
         mStatusView = (TextView)findViewById(R.id.statusView);
 
@@ -97,6 +72,7 @@ public class MainActivity extends Activity {
 
         mProgressBar = (ProgressBar)findViewById(R.id.progressBar);
         dbHandler = new DbHandler(MainActivity.this);
+        dbHandler.deleteRecord();
         UpdateToLatest();
 
         Button prevButton = (Button)findViewById(R.id.prevButton);
@@ -110,6 +86,7 @@ public class MainActivity extends Activity {
                 }
             }
         });
+
         Button nextButton = (Button)findViewById(R.id.nextButton);
         nextButton.setOnClickListener(new View.OnClickListener()
         {
@@ -146,79 +123,14 @@ public class MainActivity extends Activity {
            }
         );
 
-        checkSports = (CheckBox) findViewById(R.id.checkSports);
-        checkSports.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
-              {
-                  @Override
-                  public void onCheckedChanged(CompoundButton buttonView,boolean isChecked) {
-                      mDrawChartNight.setChannel(2,isChecked);
-                      mDrawChartDay.setChannel(2,isChecked);
-                      UpdateGraph(mDate);
-                  }
-              }
-        );
-
-        class MyBlockCallbacks implements BlockProcessor.ProcessorCallbacks
-        {
-            @Override
-            public void setProgress(final int i)
-            {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        setProgressBar(i);
-                        UpdateToLatest();
-                        if (i==100)
-                            setStatus("done");
-                    }
-                });
-            }
-            @Override
-            public void addText(final String str)
-            {
-                AddText(str);
-            }
-            @Override
-            public void send(String command)
-            {
-                mBleStuff.bleSend(command);
-            }
-        }
-        mMyCallbacks = new MyBlockCallbacks();
-
-
-        class MyBleCallbacks implements BleStuff.BleCallbacks
-        {
-            @Override
-            public void onConnect()
-            {
-                setStatus("connected");
-            }
-            @Override
-            public void onDisconect()
-            {
-                setStatus("disconnected");
-            }
-            @Override
-            public void onFound()
-            {
-                setStatus("device found");
-                mBlockProcessor.getBlocks(dbHandler, mMyCallbacks);
-            }
-            @Override
-            public void onData(byte[] data)
-            {
-                mBlockProcessor.process(data);
-            }
-        };
-        mBleCallbacks = new MyBleCallbacks();
-
-        mBleStuff.onCreate(this,mBleCallbacks);
+        syncDevice();
     }
 
     void UpdateToLatest() {
         try {
-            DbHandler.BandActivity lastActivity = dbHandler.GetLastEntry();
-            mDate = new java.util.Date(lastActivity.timestamp * 1000);
+            //DbHandler.BandActivity lastActivity = dbHandler.GetLastEntry();
+            //mDate = new java.util.Date(lastActivity.timestamp * 1000);
+            mDate = new java.util.Date();
             UpdateGraph(mDate);
         } catch (Exception e) {
             AddText(" err: " + e.getMessage() +"\n");
@@ -244,31 +156,59 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
-    protected void onResume()
-    {
-        super.onResume();
-        mBleStuff.onResume();
-    }
-
-    @Override
-    protected void onPause()
-    {
-        super.onPause();
-        mBleStuff.onPause();
-    }
 
     @Override
     protected void onDestroy()
     {
-        mBleStuff.onDestroy();
         super.onDestroy();
+    }
+
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle bundle = intent.getExtras();
+            if (bundle != null) {
+                String string = bundle.getString(BleStuffService.STATUS);
+                int resultCode = bundle.getInt(BleStuffService.RESULT);
+                setStatus(string);
+                setProgressBar(resultCode);
+                UpdateToLatest();
+            }
+        }
+    };
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter(BleStuffService.NOTIFICATION));
+
+        mDeviceAddress = sharedPref.getString("mDeviceAddress", null);
+        if (mDeviceAddress==null) {
+            Intent intent = new Intent(this, DeviceScanActivity.class);
+            startActivityForResult(intent, 33);
+        } else {
+            syncDevice();
+        }
+
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {
-        if (requestCode == mBleStuff.REQUEST_ENABLE_BT)
+        if (requestCode == 33)
+        {
+            String mDeviceName = data.getStringExtra(EXTRAS_DEVICE_NAME);
+            String mDeviceAddress = data.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+            sharedPref.edit().putString("mDeviceAddress", mDeviceAddress).commit();
+            syncDevice();
+        }
+        /*
+        else if (requestCode == mBleStuff.REQUEST_ENABLE_BT)
         {
             if (resultCode == Activity.RESULT_CANCELED)
             {
@@ -277,6 +217,15 @@ public class MainActivity extends Activity {
                 return;
             }
         }
+        */
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void syncDevice()
+    {
+        mDeviceAddress = sharedPref.getString("mDeviceAddress", null);
+        Intent i= new Intent(this, BleStuffService.class);
+        i.putExtra("HOST", mDeviceAddress);
+        startService(i);
     }
 }

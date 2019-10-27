@@ -69,6 +69,12 @@ public class DbHandler extends SQLiteOpenHelper {
         db.close();
     }
 
+    public void deleteRecord() {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.execSQL("delete from activity where timestamp=2070768428;");
+        db.close();
+    }
+
     public void reformatDB(){
         //Get the Data Repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
@@ -132,7 +138,7 @@ public class DbHandler extends SQLiteOpenHelper {
         return userList;
     }
 
-
+//2070768428
     // Get User Details
     public BandActivity GetLastEntry(){
         //deleteData();
