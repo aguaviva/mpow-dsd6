@@ -1,4 +1,4 @@
-package com.example.dsd6;
+package com.example.main;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -13,19 +13,17 @@ import java.util.List;
 class DrawChart extends View {
 
     Paint paintGray = new Paint();
-    private Paint paintRed = new Paint();
-    private Paint paintBlue = new Paint();
-    private Paint paintGreen = new Paint();
-    private Paint paintYellow = new Paint();
-    private Paint paintWhiteText = new Paint();
-    private Paint paintAwardText = new Paint();
-    private Paint paintPurple = new Paint();
-    private Paint paintDarkPurple = new Paint();
-    private Paint paintCyan = new Paint();
+    private final Paint paintRed = new Paint();
+    private final Paint lineSteps = new Paint();
+    private final Paint paintGreen = new Paint();
+    private final Paint paintYellow = new Paint();
+    private final Paint paintWhiteText = new Paint();
+    private final Paint paintAwardText = new Paint();
+    private final Paint paintPurple = new Paint();
+    private final Paint paintDarkPurple = new Paint();
+    private final Paint paintCyan = new Paint();
 
-    private Paint mPaintWalkingColor = paintBlue;
-
-    private float[] lines = new float[1024*2];
+    private Paint mPaintWalkingColor = lineSteps;
 
     ArrayList<DbHandler.BandActivity> mData;
     long mIniTime, mFinTime;
@@ -40,8 +38,8 @@ class DrawChart extends View {
         paintRed.setColor(Color.RED);
         paintRed.setStrokeWidth(8);
 
-        paintBlue.setColor(Color.BLUE);
-        paintBlue.setStrokeWidth(4);
+        lineSteps.setColor(Color.argb(255,0,0,255));
+        lineSteps.setStrokeWidth(4);
         paintGreen.setColor(Color.GREEN);
         paintGreen.setStrokeWidth(4);
         paintYellow.setColor(Color.YELLOW);
@@ -67,13 +65,6 @@ class DrawChart extends View {
         paintAwardText.setTextAlign(Paint.Align.CENTER);
 
         mPadding = (int)paintWhiteText.getTextSize();
-    }
-    public void setChannel(int channel, boolean state)
-    {
-        if (state)
-            mMask |= (1<<channel);
-        else
-            mMask &= ~(1<<channel);
     }
 
     void AddPoints(int hIni, int hFin, java.util.Date ini, java.util.Date fin, ArrayList<DbHandler.BandActivity> data)
@@ -171,7 +162,6 @@ class DrawChart extends View {
         yTop = mapY(0, 0, 4);
         yBottom = mapY(4, 0, 4);
 
-        int step = 60;
         int maxY = 200;
 
         if (canvas!=null ) {
@@ -199,6 +189,7 @@ class DrawChart extends View {
 
                 for (DbHandler.BandActivity data : mData) {
 
+
                     if (data.timestamp>mFinTime)
                         break;
 
@@ -212,7 +203,7 @@ class DrawChart extends View {
 
                             //make long horizontal lines blue
                             if (x-lastStepX>10)
-                                mPaintWalkingColor = paintBlue;
+                                mPaintWalkingColor = lineSteps;
 
                             int y0 = mapY(stepsAcc, 0, totalStepsMax);
                             canvas.drawLine(lastStepX, y0, x, y0, mPaintWalkingColor);
@@ -223,7 +214,7 @@ class DrawChart extends View {
 
                             switch(data.flags) {
                                 case 1:   mPaintWalkingColor = paintYellow; break;// steps, fast walking
-                                case 2:   mPaintWalkingColor = paintBlue; break;// steps, walking
+                                case 2:   mPaintWalkingColor = lineSteps; break;// steps, walking
                                 case 3:   mPaintWalkingColor = paintGreen; break;// steps, running
                                 default:  mPaintWalkingColor = paintCyan;
                             }
@@ -291,7 +282,7 @@ class DrawChart extends View {
                 if ((mMask & 2) > 0) {
                     //horizontal blue bar until the end
                     int y0 = mapY(stepsAcc, 0, totalStepsMax);
-                    canvas.drawLine(lastStepX, y0, xRight, y0, paintBlue);
+                    canvas.drawLine(lastStepX, y0, xRight, y0, lineSteps);
                     paintWhiteText.setTextAlign(Paint.Align.RIGHT);
                     canvas.drawText("" + stepsAcc, xRight, y0, paintWhiteText);
                     paintWhiteText.setTextAlign(Paint.Align.CENTER);
