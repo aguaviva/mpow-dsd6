@@ -3,8 +3,15 @@ package com.example.main;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -14,6 +21,9 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 
 import android.widget.TextView;
+
+import androidx.annotation.RequiresApi;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.example.stepper.R;
 
@@ -40,6 +50,8 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         sharedPref = getSharedPreferences("myPref", MODE_PRIVATE);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("custom-event-name"));
 
         setContentView(R.layout.activity_main);
 
@@ -84,6 +96,15 @@ public class MainActivity extends Activity {
         }
     }
 
+
+
+    @Override
+    protected void onDestroy() {
+        // Unregister since the activity is about to be closed.
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiver);
+        super.onDestroy();
+    }
+
     void UpdateToLatest() {
         try {
             mDate = new java.util.Date();
@@ -125,4 +146,16 @@ public class MainActivity extends Activity {
         super.onResume();
         UpdateGraph(mDate);
     }
+
+    // Our handler for received Intents. This will be called whenever an Intent
+    // with an action named "custom-event-name" is broadcasted.
+    private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // Get extra data included in the Intent
+            //String message = intent.getStringExtra("message");
+            //Log.d("receiver", "Got message: " + message);
+            UpdateGraph(mDate);
+        }
+    };
 }
