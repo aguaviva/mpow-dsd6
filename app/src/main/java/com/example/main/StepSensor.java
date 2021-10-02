@@ -20,7 +20,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import java.util.Calendar;
 import java.util.Date;
 
-public class StepSensor extends BroadcastReceiver implements SensorEventListener  {
+public class StepSensor extends BroadcastReceiver  implements SensorEventListener  {
     private final static String TAG = "StepSensor";
 
     DbHandler dbHandler;
@@ -30,15 +30,16 @@ public class StepSensor extends BroadcastReceiver implements SensorEventListener
     private static int previousValue = 0;
     private static int currentValue = 0;
 
-    private static Date mDate;
+    private static Date mDate = new Date();;
     private String command = "None";
     Context mParent = null;
-    private boolean mAutoOff = false;
+    private int lastTotalSteps = 0;
+    private int totalSteps = 0;
+    private int deltaSteps = 0;
 
     public StepSensor(Context context, int timeoutInSeconds)
     {
         mParent = context;
-        mDate = new Date();
 
         IntentFilter intentFilter = new IntentFilter("blah");
         context.registerReceiver(this,intentFilter);
@@ -48,17 +49,31 @@ public class StepSensor extends BroadcastReceiver implements SensorEventListener
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         alarmMgr.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), timeoutInSeconds*1000, pendingIntent);
-
     }
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        onStart(true);
+        //onStart(true);
+        deltaSteps = totalSteps - lastTotalSteps;
+
+        Log.i(TAG,"Total:" + totalSteps + "   Delta:" + deltaSteps);
+
+
+        if (deltaSteps>0)
+            sync(deltaSteps);
+        lastTotalSteps = totalSteps;
+
+        //Log.d("sender", "Broadcasting message");
+        Intent intent2 = new Intent("custom-event-name");
+        LocalBroadcastManager.getInstance(mParent).sendBroadcast(intent2);
     }
 
 
-    public boolean onStart(boolean autoOff) {
-        mAutoOff = autoOff;
+    public boolean onStart() {
+        lastTotalSteps = 0;
+        totalSteps = 0;
+        deltaSteps = 0;
+
         Log.i(TAG,"onStart");
 
         // get sensor manager on starting the service
@@ -93,23 +108,21 @@ public class StepSensor extends BroadcastReceiver implements SensorEventListener
         currentValue = countSteps - previousValue;
         previousValue = countSteps;
 
-        Log.i(TAG,"Steps "+ countSteps + "          Delta:" + currentValue);
-
-        sync();
-
-        Log.d("sender", "Broadcasting message");
-        Intent intent = new Intent("custom-event-name");
-        LocalBroadcastManager.getInstance(mParent).sendBroadcast(intent);
-        if (mAutoOff)
-            onStop();
-        mAutoOff = false;
+        totalSteps += currentValue;
     }
 
-    void sync()
+    void sync(int count)
     {
-        if (currentValue>0) {
-            dbHandler.insertData(0, 2, mDate.getTime() / 1000, currentValue, 0);
-        }
-        mDate = new Date();
+        dbHandler.insertData(0, 2, mDate.getTime() / 1000, count, 0);
     }
+
+    public int getTotalSteps()
+    {
+        return totalSteps;
+    }
+
+    public int getDeltaSteps(){
+        return deltaSteps;
+    }
+
 }

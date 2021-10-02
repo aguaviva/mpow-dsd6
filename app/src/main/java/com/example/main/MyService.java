@@ -51,7 +51,7 @@ public class MyService extends Service {
             //Log.d("receiver", "Got message: " + message);
             Date now = new Date();
             String str = new java.text.SimpleDateFormat("hh:mm:ss").format(now);
-            ShowNotification("Update: "+str);
+            ShowNotification("Update: "+str + "   steps:"+ mStepSensor.getTotalSteps() + " ("+ mStepSensor.getDeltaSteps()+")");
         }
     };
 
@@ -85,12 +85,14 @@ public class MyService extends Service {
 
         ShowNotification("Starting");
         mStepSensor = new StepSensor(this, 10);
+        mStepSensor.onStart();
     }
 
     @Override
     public void onDestroy()
     {
         Log.i(TAG, "onDestroy()");
+        mStepSensor.onStop();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiver);
         super.onDestroy();
     }
